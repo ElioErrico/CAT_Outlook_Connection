@@ -5,15 +5,15 @@ I moduli convertono automaticamente eventuali tabelle Word ⇄ Markdown, inviano
 
 ## Repository:
 
-modCheshireCatApi – chiamate HTTP (auth, /message, clear history).
+- modCheshireCatApi – chiamate HTTP (auth, /message, clear history).
 
-modCheshireCatCore – logica core: costruzione payload, conversione Markdown⇄Word, inserimento risposta.
+- modCheshireCatCore – logica core: costruzione payload, conversione Markdown⇄Word, inserimento risposta.
 
-modMarkdownHelpers – funzioni helper per Markdown, sanitizzazione testo, formattazioni inline.
+- modMarkdownHelpers – funzioni helper per Markdown, sanitizzazione testo, formattazioni inline.
 
-modOutlookCheshireCat – macro “pronte all’uso” per Outlook (usa il WordEditor della finestra di composizione).
+- modOutlookCheshireCat – macro “pronte all’uso” per Outlook (usa il WordEditor della finestra di composizione).
 
-modPromptHelper – costanti per il prompt (contesto+richiesta).
+- modPromptHelper – costanti per il prompt (contesto+richiesta).
 
 ## Requisiti
 
@@ -39,29 +39,20 @@ Se “Microsoft XML, v6.0” non fosse disponibile, puoi sostituire nelle Create
 
 ## Installazione
 
-Apri Outlook.
+- Apri Outlook.
 
-Premi Alt+F11 per aprire l’Editor VBA (VBE).
+- Premi Alt+F11 per aprire l’Editor VBA (VBE).
 
-Menu File → Importa file… e importa i 5 moduli (.bas), oppure crea 5 Moduli (Inserisci → Modulo) e incolla il contenuto:
+- Menu File → Importa file… e importa i 5 moduli (.bas)
 
-modCheshireCatApi
+- In VBE: Strumenti → Riferimenti… spunta i riferimenti elencati sopra.
 
-modCheshireCatCore
-
-modMarkdownHelpers
-
-modOutlookCheshireCat
-
-modPromptHelper
-
-In VBE: Strumenti → Riferimenti… spunta i riferimenti elencati sopra.
-
-Salva (Ctrl+S) e chiudi il VBE.
+- Salva (Ctrl+S) e chiudi il VBE.
 
 ## Configurazione
 
 Apri modCheshireCatApi e imposta i parametri dell’endpoint:
+
 
 =========== CONFIG ===========
 Public Const DEFAULT_URL As String = "http://localhost:1865"
@@ -124,6 +115,7 @@ modOutlookCheshireCat.CCAT_CancellaCronologia_Outlook
 (Opzionale) Modifica per assegnare icona/nome visibile.
 
 OK per salvare.
+
 
 
 
