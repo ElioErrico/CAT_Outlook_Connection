@@ -601,20 +601,33 @@ Public Sub EnsureHtmlBody(ByVal insp As Outlook.Inspector)
     On Error GoTo 0
 End Sub
 
-' Applica una formattazione "grigia" robusta al range passato
+' Applica una formattazione "grigia" SOLO al testo (escludendo il paragrafo finale)
 Public Sub GrayOutRange(ByVal r As Word.Range)
     On Error Resume Next
+    Dim work As Word.Range
+    Set work = r.Duplicate
+
+    ' Se l'ultimo carattere è un paragrafo, escludilo dal range da formattare
+    If work.Characters.Count > 0 Then
+        If AscW(Right$(work.text, 1)) = 13 Then ' vbCr / ¶
+            work.MoveEnd wdCharacter, -1
+        End If
+    End If
+
     ' 1) Colore font grigio
-    r.Font.Color = RGB(128, 128, 128)
-    r.Font.ColorIndex = wdGray50
+    work.Font.Color = RGB(128, 128, 128)
+    work.Font.ColorIndex = wdGray50
+
     ' 2) No evidenziazione "gialla"
-    r.HighlightColorIndex = wdNoHighlight
-    ' 3) Sfondo tenue come fallback
-    r.Shading.Texture = wdTextureNone
-    r.Shading.ForegroundPatternColor = wdColorAutomatic
-    r.Shading.BackgroundPatternColor = RGB(240, 240, 240)
+    work.HighlightColorIndex = wdNoHighlight
+
+    ' 3) Sfondo tenue come fallback (sul testo, non sul paragrafo)
+    work.Shading.Texture = wdTextureNone
+    work.Shading.ForegroundPatternColor = wdColorAutomatic
+    work.Shading.BackgroundPatternColor = RGB(240, 240, 240)
     On Error GoTo 0
 End Sub
+
 
 
 

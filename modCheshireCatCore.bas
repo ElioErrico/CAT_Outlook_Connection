@@ -4,17 +4,25 @@ Attribute VB_Name = "modCheshireCatCore"
 '==========================
 Option Explicit
 
-' ---- Binder per usare la Selection del WordEditor in Outlook ----
+' ---- Binder per usare la Selection del WordEditor in Outlook/Word ----
 Private mSel As Word.Selection
+' Punto di inserimento preferito (facoltativo): se impostato, la risposta verrà inserita qui
+Private mInsertAt As Word.Range
 
 ' Chiamala da modOutlookCheshireCat prima di usare funzioni che scrivono
 Public Sub CCAT_BindSelection(ByVal wSel As Word.Selection)
     Set mSel = wSel
 End Sub
 
+' (Opzionale) Imposta un punto di inserimento esplicito dove scrivere la risposta
+Public Sub CCAT_SetInsertionRange(ByVal r As Word.Range)
+    If r Is Nothing Then Exit Sub
+    Set mInsertAt = r.Duplicate
+End Sub
+
 ' Ritorna la Selection corrente:
-' - se in Outlook: quella passata via bind (mSel)
-' - se in Word standalone: fallback a Word.Application.Selection
+' - se in Outlook/Word con bind: quella passata via bind (mSel)
+' - altrimenti fallback a Word.Application.Selection
 Public Function CurSel() As Word.Selection
     If Not mSel Is Nothing Then
         Set CurSel = mSel
@@ -33,35 +41,62 @@ Public Sub InviaTestoAChat()
     Dim sel As Word.Selection
     Dim selectedText As String
     Dim response As String
-    Dim startRange As Word.Range
+    Dim target As Word.Range
+    Dim needLineBreak As Boolean
 
     Set sel = CurSel()
     If sel.Range.Start = sel.Range.End Then
-        MsgBox "Nessun testo selezionato", vbExclamation
+        MsgBox "Nessun testo selezionato.", vbExclamation
         Exit Sub
     End If
 
-    ' Costruisce payload pulito: testo + eventuali tabelle convertite in Markdown
-    selectedText = BuildMessageFromSelection(sel.Range)
+    ' 1) Costruisce payload pulito: testo + eventuali tabelle convertite in Markdown
+    selectedText = modMarkdownHelpers.BuildMessageFromSelection(sel.Range)
     If Len(Trim$(selectedText)) = 0 Then
         MsgBox "La selezione è vuota dopo la normalizzazione.", vbExclamation
         Exit Sub
     End If
 
-    ' Chiama la tua API (modCheshireCatApi)
-    response = CheshireCat_Chat(selectedText)
+    ' 2) Chiama l'API (modCheshireCatApi)
+    response = modCheshireCatApi.CheshireCat_Chat(selectedText)
     If Len(response) = 0 Then
         MsgBox "Risposta vuota dall'API.", vbExclamation
         Exit Sub
     End If
 
-    ' Punto di inserimento dopo la selezione corrente
-    Set startRange = sel.Range
-    startRange.Collapse Direction:=wdCollapseEnd
-    startRange.Select
-    sel.TypeParagraph
+    ' 3) Determina un punto di inserimento FUORI dal range grigiato
+    If Not mInsertAt Is Nothing Then
+        Set target = mInsertAt.Duplicate
+        ' Se il target non è vuoto, vai in coda
+        target.Collapse wdCollapseEnd
+        needLineBreak = True
+        ' Una volta usato, azzera il marker per evitare riutilizzi involontari
+        Set mInsertAt = Nothing
+    Else
+        ' In assenza di target esplicito: inserisci DOPO la selezione corrente
+        Set target = sel.Range.Duplicate
+        target.Collapse wdCollapseEnd
+        needLineBreak = True
+    End If
 
-    ' Inserisce subito testo + tabelle formattate
+    ' 4) Isola il paragrafo della risposta e PULISCI i formati
+    If needLineBreak Then
+        target.InsertParagraphAfter
+        target.Collapse wdCollapseEnd
+    End If
+
+    ' Reset formati per evitare eredità dal testo selezionato (anche se grigiato solo sui caratteri)
+    With target
+        .ParagraphFormat.Reset
+        .Font.Reset
+        .HighlightColorIndex = wdNoHighlight
+        .Shading.Texture = wdTextureNone
+        .Shading.ForegroundPatternColor = wdColorAutomatic
+        .Shading.BackgroundPatternColor = wdColorAutomatic
+    End With
+
+    ' 5) Sposta la Selection sul punto di inserimento e scrivi la risposta con gestione Markdown/tabelle
+    CurSel().SetRange Start:=target.Start, End:=target.End
     InsertAIResponseWithMarkdownTables response
 End Sub
 
@@ -69,50 +104,52 @@ Public Sub CancellaCronologiaChat()
     Dim jwtToken As String
     Dim success As Boolean
 
-    jwtToken = GetJWToken() ' <-- dal modulo API
+    jwtToken = modCheshireCatApi.GetJWToken()
     If Left$(jwtToken, 6) = "Errore" Or Len(jwtToken) = 0 Then
         MsgBox "Errore durante il recupero del token: " & jwtToken, vbCritical
         Exit Sub
     End If
 
-    success = ClearChatHistory(jwtToken) ' <-- dal modulo API
+    success = modCheshireCatApi.ClearChatHistory(jwtToken)
     If success Then
-        MsgBox "Cronologia cancellata con successo!"
+        MsgBox "Cronologia cancellata con successo!", vbInformation
     Else
-        MsgBox "Errore durante la cancellazione della cronologia."
+        MsgBox "Errore durante la cancellazione della cronologia.", vbExclamation
     End If
 End Sub
 
 ' ========= CONVERSIONE / INSERIMENTO TABELLE MARKDOWN =========
 
 ' Inserisce testo e converte TUTTE le tabelle Markdown trovate (2a, 3a, ...).
+' Usa sempre la Selection corrente (spostata in 'InviaTestoAChat' sul punto target).
 Public Sub InsertAIResponseWithMarkdownTables(ByVal response As String)
     Dim rest As String
     Dim pre As String, tbl As String, post_ As String
     Dim hasTable As Boolean
     Dim safety As Long
 
-    rest = NormalizeToLf(Replace(response, "\n", vbLf)) ' normalizza fine riga
+    ' Normalizza fine riga e gestisci "\n" letterali
+    rest = modMarkdownHelpers.NormalizeToLf(Replace(response, "\n", vbLf))
 
     safety = 0 ' guardia anti-loop
     Do
-        hasTable = ExtractFirstMarkdownTableBlock(rest, pre, tbl, post_)
+        hasTable = modMarkdownHelpers.ExtractFirstMarkdownTableBlock(rest, pre, tbl, post_)
 
         If hasTable = False Then
-            If Len(pre) > 0 Then InsertMarkdownInline CurSel(), pre, False, False
+            If Len(pre) > 0 Then modMarkdownHelpers.InsertMarkdownInline CurSel(), pre, False, False
             Exit Do
         End If
 
         ' 1) Testo prima della tabella corrente
         If Len(pre) > 0 Then
-            InsertMarkdownInline CurSel(), pre, False, False
+            modMarkdownHelpers.InsertMarkdownInline CurSel(), pre, False, False
         End If
 
-        ' 2) Tabella corrente
-        EnsureParagraphBeforeInsertion CurSel()
-        CreateAndInsertWordTableFromMarkdown tbl, CurSel().Range, CurSel()
+        ' 2) Tabella corrente (assicura un paragrafo "pulito" prima)
+        modMarkdownHelpers.EnsureParagraphBeforeInsertion CurSel()
+        modMarkdownHelpers.CreateAndInsertWordTableFromMarkdown tbl, CurSel().Range, CurSel()
 
-        ' 3) Se c'è ancora del testo dopo, aggiungi una riga di separazione
+        ' 3) Continua con il resto; se c'è altro testo, separa con un invio
         rest = post_
         If Len(rest) > 0 Then CurSel().TypeParagraph
 
@@ -132,14 +169,14 @@ Public Sub ConvertiTabellaMarkdown()
     End If
 
     Set selRng = CurSel().Range
-    md = Trim(GetSelectedMarkdownTableText(selRng))
+    md = Trim(modMarkdownHelpers.GetSelectedMarkdownTableText(selRng))
     If Len(md) = 0 Then
         MsgBox "Seleziona il testo della tabella Markdown (righe con '|' ).", vbExclamation
         Exit Sub
     End If
 
     On Error GoTo EH
-    ConvertMarkdownToWord md, selRng, CurSel()
+    modMarkdownHelpers.ConvertMarkdownToWord md, selRng, CurSel()
     MsgBox "Tabella convertita con successo!", vbInformation
     Exit Sub
 EH:

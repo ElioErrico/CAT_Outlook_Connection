@@ -18,16 +18,13 @@ Private Function GetComposeSelection() As Word.Selection
     Set GetComposeSelection = wdDoc.Application.Selection
 End Function
 
-' ===== Invia SELEZIONE + contesto (thread completo) al backend e inserisce la risposta =====
 Public Sub CCAT_InserisciRispostaDaSelezione_Outlook()
     Dim insp As Outlook.Inspector
     Dim sel As Word.Selection
-    Dim selectedText As String
-    Dim response As String
-    Dim startRange As Word.Range
     Dim rGray As Word.Range
+    Dim insertAt As Word.Range
 
-    ' 1) Recupera l'inspector e forza HTML (per garantire la formattazione)
+    ' 1) Inspector + forza HTML
     On Error Resume Next
     Set insp = Application.ActiveInspector
     On Error GoTo 0
@@ -35,9 +32,9 @@ Public Sub CCAT_InserisciRispostaDaSelezione_Outlook()
         MsgBox "Apri una finestra di composizione con editor Word.", vbExclamation
         Exit Sub
     End If
-    modMarkdownHelpers.EnsureHtmlBody insp
+    EnsureHtmlBody insp
 
-    ' 2) (Ri)ottieni la Selection dal WordEditor
+    ' 2) Selection valida
     Set sel = GetComposeSelection()
     If sel Is Nothing Then
         MsgBox "Apri una finestra di composizione con editor Word.", vbExclamation
@@ -48,14 +45,31 @@ Public Sub CCAT_InserisciRispostaDaSelezione_Outlook()
         Exit Sub
     End If
 
-    ' 3) Colora in grigio il testo selezionato (senza alterare il contenuto)
+    ' 3) Duplica la selezione e grigia SOLO il testo (non il paragrafo)
     Set rGray = sel.Range.Duplicate
-    modMarkdownHelpers.GrayOutRange rGray
+    GrayOutRange rGray
 
-    ' 4) Bind al core e invia
+    ' 4) Prepara un punto di inserimento DOPO il range grigio, con formattazione pulita
+    Set insertAt = rGray.Duplicate
+    insertAt.Collapse wdCollapseEnd
+    insertAt.ParagraphFormat.Reset
+    insertAt.Font.Reset
+    insertAt.HighlightColorIndex = wdNoHighlight
+    insertAt.Shading.Texture = wdTextureNone
+    insertAt.Shading.ForegroundPatternColor = wdColorAutomatic
+    insertAt.Shading.BackgroundPatternColor = wdColorAutomatic
+
+    ' (facoltativo) vai a capo prima della risposta
+    insertAt.InsertParagraphAfter
+    insertAt.Collapse wdCollapseEnd
+
+    ' 5) Binda la selezione al core e passa il punto di inserimento
+    '    => Aggiungi in modCheshireCatCore una property/argomento per il target range
     modCheshireCatCore.CCAT_BindSelection sel
+    modCheshireCatCore.CCAT_SetInsertionRange insertAt   ' <-- aggiungi questa API nel core
     modCheshireCatCore.InviaTestoAChat
 End Sub
+
 
 
 
