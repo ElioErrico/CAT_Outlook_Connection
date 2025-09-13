@@ -64,7 +64,7 @@ Salva (Ctrl+S) e chiudi il VBE.
 Apri modCheshireCatApi e imposta i parametri dell’endpoint:
 
 =========== CONFIG ===========
-Public Const DEFAULT_URL As String = "http://localhost:1865"  ' o https://tuo-host:porta
+Public Const DEFAULT_URL As String = "http://localhost:1865"  
 Public Const DEFAULT_USERNAME As String = "admin"
 Public Const DEFAULT_PASSWORD As String = "admin"
 
@@ -122,4 +122,5 @@ modOutlookCheshireCat.CCAT_CancellaCronologia_Outlook
 (Opzionale) Modifica per assegnare icona/nome visibile.
 
 OK per salvare.
+
 
