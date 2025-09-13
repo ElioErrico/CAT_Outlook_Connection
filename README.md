@@ -63,58 +63,60 @@ Public Const DEFAULT_PASSWORD As String = "admin"
 
 ## Abilitare le macro in Outlook
 
-In Outlook: File → Opzioni → Centro protezione → Impostazioni Centro protezione → Impostazioni Macro
-Scegli una delle opzioni (per sviluppo è più semplice la prima):
+- In Outlook: File → Opzioni → Centro protezione → Impostazioni Centro protezione → Impostazioni Macro
+  Scegli una delle opzioni (per sviluppo è più semplice la prima):
 
-Attiva notifiche per tutte le macro (consigliato in sviluppo), oppure
+- Attiva notifiche per tutte le macro (consigliato in sviluppo), oppure
+ 
+- Consenti solo macro firmate (richiede la firma del progetto VBA).
 
-Consenti solo macro firmate (richiede la firma del progetto VBA).
+- Spunta anche, se necessario: “Considera attendibile l’accesso al modello a oggetti del progetto VBA”.
 
-Spunta anche, se necessario: “Considera attendibile l’accesso al modello a oggetti del progetto VBA”.
+- Firma del progetto e installazione certificati (se usi “solo macro firmate”)
 
-Firma del progetto e installazione certificati (se usi “solo macro firmate”)
-1) Ottieni/crea un certificato di firma
+### Ottieni/crea un certificato di firma
 
-Opzione A – Certificato aziendale/pubblico (consigliato in produzione)
-Usa un certificato di Code Signing fornito dall’IT/PKI aziendale (o da una CA pubblica).
+- Opzione A – Certificato aziendale/pubblico (consigliato in produzione)
+  Usa un certificato di Code Signing fornito dall’IT/PKI aziendale (o da una CA pubblica).
 
-Opzione B – SelfCert (sviluppo/test)
-Crea un certificato locale con SelfCert.exe (installato con Office):
+- Opzione B – SelfCert (sviluppo/test)
+  Crea un certificato locale con SelfCert.exe (installato con Office):
 
-Percorso tipico:
-C:\Program Files\Microsoft Office\root\Office16\SELFCERT.EXE
-(su Office 2019/2021/365 è analogo; se 32-bit su OS 64-bit: Program Files (x86))
+- Percorso tipico:
+  C:\Program Files\Microsoft Office\root\Office16\SELFCERT.EXE
+  (su Office 2019/2021/365 è analogo; se 32-bit su OS 64-bit: Program Files (x86))
 
-Avvia SelfCert.exe, dai un nome (es. “VBA CheshireCat Dev”) e conferma.
+- Avvia SelfCert.exe, dai un nome (es. “VBA CheshireCat Dev”) e conferma.
 
-2) Firma il progetto VBA
+### Firma il progetto VBA
 
-Apri Outlook → Alt+F11 (Editor VBA).
+- Apri Outlook → Alt+F11 (Editor VBA).
 
-Menu Strumenti → Firma digitale….
+- Menu Strumenti → Firma digitale….
 
-Scegli il certificato → OK.
+- Scegli il certificato → OK.
 
-Salva il progetto, chiudi e riapri Outlook.
+- Salva il progetto, chiudi e riapri Outlook.
 
-Importante: qualsiasi modifica al codice invalida la firma → dopo ogni modifica, rifirma con gli stessi passaggi.
+- Importante: qualsiasi modifica al codice invalida la firma → dopo ogni modifica, rifirma con gli stessi passaggi.
 
 
 ## Aggiungere i bottoni alla Barra di Accesso Rapido
 
-File → Opzioni → Barra di accesso rapido.
+- File → Opzioni → Barra di accesso rapido.
 
-“Scegli comandi da” → Macro.
+- “Scegli comandi da” → Macro.
 
-Aggiungi queste macro:
+- Aggiungi queste macro:
 
-modOutlookCheshireCat.CCAT_InserisciRispostaDaSelezione_Outlook
+- modOutlookCheshireCat.CCAT_InserisciRispostaDaSelezione_Outlook
 
-modOutlookCheshireCat.CCAT_CancellaCronologia_Outlook
+- modOutlookCheshireCat.CCAT_CancellaCronologia_Outlook
 
-(Opzionale) Modifica per assegnare icona/nome visibile.
+- (Opzionale) Modifica per assegnare icona/nome visibile.
 
-OK per salvare.
+- OK per salvare.
+
 
 
 
