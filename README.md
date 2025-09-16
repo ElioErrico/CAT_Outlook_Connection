@@ -3,18 +3,6 @@
 Automatizza le risposte alle email di Outlook usando il backend CheshireCat direttamente dall’editor di messaggi (WordEditor).
 I moduli convertono automaticamente eventuali tabelle Word ⇄ Markdown, inviano il testo (con contesto del thread) all’API, e inseriscono la risposta formattata nel corpo dell’email.
 
-## Repository:
-
-- modCheshireCatApi – chiamate HTTP (auth, /message, clear history).
-
-- modCheshireCatCore – logica core: costruzione payload, conversione Markdown⇄Word, inserimento risposta.
-
-- modMarkdownHelpers – funzioni helper per Markdown, sanitizzazione testo, formattazioni inline.
-
-- modOutlookCheshireCat – macro “pronte all’uso” per Outlook (usa il WordEditor della finestra di composizione).
-
-- modPromptHelper – costanti per il prompt (contesto+richiesta).
-
 ## Requisiti
 
 Windows + Outlook 2016 o superiore (32/64 bit).
@@ -116,6 +104,7 @@ Public Const DEFAULT_PASSWORD As String = "admin"
 - (Opzionale) Modifica per assegnare icona/nome visibile.
 
 - OK per salvare.
+
 
 
 
