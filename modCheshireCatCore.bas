@@ -8,7 +8,10 @@ Option Explicit
 Private mSel As Word.Selection
 ' Punto di inserimento preferito (facoltativo): se impostato, la risposta verrà inserita qui
 Private mInsertAt As Word.Range
+' Messaggio forzato (costruito altrove: contesto+thread+richiesta+lingua)
+Private g_ForcedMessage As String
 
+' ================== BINDINGS & STATE ==================
 ' Chiamala da modOutlookCheshireCat prima di usare funzioni che scrivono
 Public Sub CCAT_BindSelection(ByVal wSel As Word.Selection)
     Set mSel = wSel
@@ -18,6 +21,18 @@ End Sub
 Public Sub CCAT_SetInsertionRange(ByVal r As Word.Range)
     If r Is Nothing Then Exit Sub
     Set mInsertAt = r.Duplicate
+End Sub
+
+' Imposta il messaggio da inviare direttamente (one-shot)
+Public Sub CCAT_SetForcedMessage(ByVal msg As String)
+    g_ForcedMessage = Trim$(msg)
+End Sub
+
+' (Facoltativa) Pulisce lo stato
+Public Sub CCAT_ClearBindings()
+    Set mSel = Nothing
+    Set mInsertAt = Nothing
+    g_ForcedMessage = ""
 End Sub
 
 ' Ritorna la Selection corrente:
@@ -36,29 +51,43 @@ Public Function CurSel() As Word.Selection
     End If
 End Function
 
+' Wrapper: mantiene retro-compatibilità con chiamate esistenti
+Public Function BuildMessageFromSelection(ByVal r As Word.Range) As String
+    BuildMessageFromSelection = modMarkdownHelpers.BuildMessageFromSelection(r)
+End Function
+
 ' ========= INVIO TESTO E INSERIMENTO RISPOSTA =========
 Public Sub InviaTestoAChat()
     Dim sel As Word.Selection
-    Dim selectedText As String
+    Dim messageToSend As String
     Dim response As String
     Dim target As Word.Range
     Dim needLineBreak As Boolean
 
     Set sel = CurSel()
-    If sel.Range.Start = sel.Range.End Then
-        MsgBox "Nessun testo selezionato.", vbExclamation
-        Exit Sub
+
+    ' Se non ho un messaggio forzato, richiedo una selezione non vuota
+    If Len(g_ForcedMessage) = 0 Then
+        If sel.Range.Start = sel.Range.End Then
+            MsgBox "Nessun testo selezionato.", vbExclamation
+            Exit Sub
+        End If
     End If
 
-    ' 1) Costruisce payload pulito: testo + eventuali tabelle convertite in Markdown
-    selectedText = modMarkdownHelpers.BuildMessageFromSelection(sel.Range)
-    If Len(Trim$(selectedText)) = 0 Then
-        MsgBox "La selezione è vuota dopo la normalizzazione.", vbExclamation
-        Exit Sub
+    ' 1) Costruisci il payload: usa quello forzato se presente, altrimenti normalizza la selezione
+    If Len(g_ForcedMessage) > 0 Then
+        messageToSend = g_ForcedMessage
+        g_ForcedMessage = "" ' one-shot, azzera dopo l'uso
+    Else
+        messageToSend = modMarkdownHelpers.BuildMessageFromSelection(sel.Range)
+        If Len(Trim$(messageToSend)) = 0 Then
+            MsgBox "La selezione è vuota dopo la normalizzazione.", vbExclamation
+            Exit Sub
+        End If
     End If
 
     ' 2) Chiama l'API (modCheshireCatApi)
-    response = modCheshireCatApi.CheshireCat_Chat(selectedText)
+    response = modCheshireCatApi.CheshireCat_Chat(messageToSend)
     If Len(response) = 0 Then
         MsgBox "Risposta vuota dall'API.", vbExclamation
         Exit Sub
@@ -67,25 +96,20 @@ Public Sub InviaTestoAChat()
     ' 3) Determina un punto di inserimento FUORI dal range grigiato
     If Not mInsertAt Is Nothing Then
         Set target = mInsertAt.Duplicate
-        ' Se il target non è vuoto, vai in coda
         target.Collapse wdCollapseEnd
         needLineBreak = True
-        ' Una volta usato, azzera il marker per evitare riutilizzi involontari
-        Set mInsertAt = Nothing
+        Set mInsertAt = Nothing ' evita riutilizzi involontari
     Else
-        ' In assenza di target esplicito: inserisci DOPO la selezione corrente
         Set target = sel.Range.Duplicate
         target.Collapse wdCollapseEnd
         needLineBreak = True
     End If
 
-    ' 4) Isola il paragrafo della risposta e PULISCI i formati
+    ' 4) Inserisci un invio e resetta i formati per evitare eredità
     If needLineBreak Then
         target.InsertParagraphAfter
         target.Collapse wdCollapseEnd
     End If
-
-    ' Reset formati per evitare eredità dal testo selezionato (anche se grigiato solo sui caratteri)
     With target
         .ParagraphFormat.Reset
         .Font.Reset
@@ -134,7 +158,6 @@ Public Sub InsertAIResponseWithMarkdownTables(ByVal response As String)
     safety = 0 ' guardia anti-loop
     Do
         hasTable = modMarkdownHelpers.ExtractFirstMarkdownTableBlock(rest, pre, tbl, post_)
-
         If hasTable = False Then
             If Len(pre) > 0 Then modMarkdownHelpers.InsertMarkdownInline CurSel(), pre, False, False
             Exit Do

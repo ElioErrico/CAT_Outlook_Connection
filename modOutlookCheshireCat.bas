@@ -63,29 +63,32 @@ Public Sub CCAT_InserisciRispostaDaSelezione_Outlook()
     insertAt.InsertParagraphAfter
     insertAt.Collapse wdCollapseEnd
 
-    ' 5) Binda la selezione al core e passa il punto di inserimento
-    '    => Aggiungi in modCheshireCatCore una property/argomento per il target range
+    ' 5) Costruisci il payload da inviare alla chat
+    Dim userRequestText As String
+    ' usa il normalizzatore/tabelle?Markdown del core se disponibile
+    On Error Resume Next
+    userRequestText = modCheshireCatCore.BuildMessageFromSelection(sel.Range)
+    On Error GoTo 0
+    If Len(Trim$(userRequestText)) = 0 Then
+        userRequestText = Trim$(sel.Range.text)
+    End If
+
+    Dim threadText As String
+    threadText = BuildMailExchange(insp, THREAD_MAX_ITEMS, THREAD_MAX_CHARS_PER_ITEM)
+
+    Dim payload As String
+    payload = OUTLOOK_PROMPT_CONTEXT & vbCrLf & _
+              threadText & vbCrLf & _
+              OUTLOOK_PROMPT_USER_REQUEST & userRequestText & vbCrLf & _
+              OUTLOOK_PROMPT_USER_LANGUAGE
+
+    ' 6) Passa punto di inserimento e payload al core
     modCheshireCatCore.CCAT_BindSelection sel
-    modCheshireCatCore.CCAT_SetInsertionRange insertAt   ' <-- aggiungi questa API nel core
+    modCheshireCatCore.CCAT_SetInsertionRange insertAt   ' (già previsto)
+    modCheshireCatCore.CCAT_SetForcedMessage payload     ' <<< NUOVA API nel core
+
+    ' 7) Invio al backend
     modCheshireCatCore.InviaTestoAChat
-End Sub
-
-
-
-
-' ===== Cancella cronologia remota =====
-Public Sub CCAT_CancellaCronologia_Outlook()
-    Dim jwt As String
-    jwt = GetJWToken()
-    If Left$(jwt, 6) = "Errore" Or Len(jwt) = 0 Then
-        MsgBox "Errore token: " & jwt, vbCritical
-        Exit Sub
-    End If
-    If ClearChatHistory(jwt) Then
-        MsgBox "Cronologia cancellata.", vbInformation
-    Else
-        MsgBox "Errore durante la cancellazione.", vbExclamation
-    End If
 End Sub
 
 
